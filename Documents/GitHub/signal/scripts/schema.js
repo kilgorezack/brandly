@@ -11,9 +11,9 @@
  *   OR run: CREATE EXTENSION IF NOT EXISTS postgis;
  */
 import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 1 });
 
 async function run() {
   console.log('Creating schema...');

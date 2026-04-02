@@ -17,10 +17,10 @@ import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 1 });
 
 // ABS ASGS field name mappings per SA level
 const FIELD_MAPS = {

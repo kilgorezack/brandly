@@ -15,9 +15,9 @@
  *   https://www.abs.gov.au/about/data-services/application-programming-interfaces-apis
  */
 import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 1 });
 const ABS_BASE = 'https://api.data.abs.gov.au';
 
 // ─── ABS API helpers ─────────────────────────────────────────────────────────

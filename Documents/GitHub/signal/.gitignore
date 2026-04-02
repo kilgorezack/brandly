@@ -4,7 +4,8 @@ dist/
 .env.local
 .DS_Store
 
-# ABS boundary data (large files — load via scripts/seed-boundaries.js)
+# ABS boundary data for database seeding (large files)
 data/*.json
 data/*.geojson
 !data/.gitkeep
+.vercel

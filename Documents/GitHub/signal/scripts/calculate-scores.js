@@ -5,13 +5,13 @@
  * Run after npm run db:sync.
  */
 import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
+import postgres from 'postgres';
 import {
   computeScore,
   DEFAULT_WEIGHTS,
 } from '../server/services/scores.js';
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL, { ssl: 'require', max: 1 });
 
 async function run() {
   console.log('Calculating opportunity scores...\n');
