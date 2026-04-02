@@ -1,159 +1,206 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import Map, { Source, Layer, NavigationControl } from 'react-map-gl';
-import { MAPBOX_TOKEN, INITIAL_VIEW, MAP_STYLE } from '../config.js';
-import { SOURCE_ID, FILL_LAYER, BORDER_LAYER, HIGHLIGHT_LAYER } from './regionLayers.js';
-import { FILL_PAINT, BORDER_PAINT, HIGHLIGHT_PAINT } from './choropleth.js';
-import { fetchChoropleth } from '../api/choropleth.js';
-import { formatScore } from '../utils/formatters.js';
+import { useEffect, useRef, useState } from 'react';
+import { scoreToHex } from '../utils/scoreColors.js';
+import { MAP_CENTER, MAP_CAMERA_DISTANCE } from '../config.js';
 
-export default function SignalMap({ activeLevel, selectedRegionId, onRegionClick }) {
+/**
+ * SignalMap — Apple MapKit JS choropleth for SA4 broadband opportunity scores.
+ *
+ * Props:
+ *   geojson        — FeatureCollection (sa4.geojson), null while loading
+ *   selectedId     — currently selected region id (string)
+ *   onRegionSelect — callback(properties) when a region is clicked
+ */
+export default function SignalMap({ geojson, selectedId, onRegionSelect }) {
+  const containerRef = useRef(null);
   const mapRef = useRef(null);
-  const [choroplethData, setChoroplethData] = useState(null);
-  const [hoverInfo, setHoverInfo] = useState(null);
-  const [hoveredId, setHoveredId] = useState(null);
+  const overlayMapRef = useRef({}); // id → overlay item
+  const [tooltip, setTooltip] = useState(null); // { x, y, name, score }
+  const [mapReady, setMapReady] = useState(false);
 
-  // Load choropleth data when active level changes
+  // ── Initialize MapKit JS ────────────────────────────────────────────────────
   useEffect(() => {
-    let cancelled = false;
-    fetchChoropleth({ type: activeLevel }).then((data) => {
-      if (!cancelled) setChoroplethData(data);
-    });
-    return () => { cancelled = true; };
-  }, [activeLevel]);
+    let isMounted = true;
 
-  // Hover state management
-  const onMouseMove = useCallback(
-    (e) => {
-      const map = mapRef.current?.getMap();
-      if (!map) return;
+    function initMap() {
+      if (!window.mapkit || mapRef.current) return;
 
-      const features = map.queryRenderedFeatures(e.point, {
-        layers: [FILL_LAYER.id],
-      });
-
-      if (features.length > 0) {
-        const feature = features[0];
-        const id = feature.properties?.id;
-
-        if (id !== hoveredId) {
-          if (hoveredId) {
-            map.setFeatureState(
-              { source: SOURCE_ID, id: hoveredId },
-              { hover: false }
-            );
-          }
-          map.setFeatureState({ source: SOURCE_ID, id }, { hover: true });
-          setHoveredId(id);
-        }
-
-        setHoverInfo({
-          x: e.point.x,
-          y: e.point.y,
-          name: feature.properties?.name,
-          score: feature.properties?.opportunity_score,
+      try {
+        mapkit.init({
+          authorizationCallback: done => {
+            done(import.meta.env.VITE_MAPKIT_TOKEN || '');
+          },
         });
-        map.getCanvas().style.cursor = 'pointer';
-      } else {
-        if (hoveredId) {
-          map.setFeatureState(
-            { source: SOURCE_ID, id: hoveredId },
-            { hover: false }
-          );
-          setHoveredId(null);
-        }
-        setHoverInfo(null);
-        map.getCanvas().style.cursor = '';
-      }
-    },
-    [hoveredId]
-  );
 
-  const onMouseLeave = useCallback(() => {
-    const map = mapRef.current?.getMap();
-    if (hoveredId && map) {
-      map.setFeatureState({ source: SOURCE_ID, id: hoveredId }, { hover: false });
+        const map = new mapkit.Map(containerRef.current, {
+          center: new mapkit.Coordinate(MAP_CENTER.lat, MAP_CENTER.lng),
+          cameraDistance: MAP_CAMERA_DISTANCE,
+          mapType: mapkit.Map.MapTypes.MutedStandard,
+          colorScheme: mapkit.Map.ColorSchemes.Dark,
+          showsCompass: mapkit.FeatureVisibility.Hidden,
+          showsScale: mapkit.FeatureVisibility.Hidden,
+          showsMapTypeControl: false,
+          showsZoomControl: true,
+          isRotationEnabled: false,
+        });
+
+        // Constrain to Australia
+        map.cameraBoundary = new mapkit.CoordinateRegion(
+          new mapkit.Coordinate(-25.7, 134.0),
+          new mapkit.CoordinateSpan(35, 45)
+        );
+
+        mapRef.current = map;
+        if (isMounted) setMapReady(true);
+      } catch (err) {
+        console.error('MapKit init error:', err);
+      }
     }
-    setHoveredId(null);
-    setHoverInfo(null);
-  }, [hoveredId]);
 
-  const onClick = useCallback(
-    (e) => {
-      const map = mapRef.current?.getMap();
-      if (!map) return;
-
-      const features = map.queryRenderedFeatures(e.point, {
-        layers: [FILL_LAYER.id],
-      });
-
-      if (features.length > 0) {
-        const props = features[0].properties;
-        onRegionClick({ id: props.id, name: props.name, type: props.type });
+    // MapKit core loads first, then libraries (including 'map') load separately.
+    // Poll until both core and the Map constructor are available.
+    const checkInterval = setInterval(() => {
+      if (window.mapkit && window.mapkit.Map) {
+        clearInterval(checkInterval);
+        initMap();
       }
-    },
-    [onRegionClick]
-  );
+    }, 100);
+    return () => {
+      clearInterval(checkInterval);
+      isMounted = false;
+    };
+  }, []);
 
-  // Highlight filter: show white overlay only on selected region
-  const highlightFilter = selectedRegionId
-    ? ['==', ['get', 'id'], selectedRegionId]
-    : ['==', ['get', 'id'], ''];
+  // ── Render choropleth overlays when geojson arrives ─────────────────────────
+  useEffect(() => {
+    if (!mapReady || !geojson || !mapRef.current) return;
+
+    const map = mapRef.current;
+
+    // Remove old overlays
+    if (map.overlays?.length) {
+      map.removeOverlays(map.overlays);
+    }
+    overlayMapRef.current = {};
+
+    const delegate = {
+      styleForOverlay(overlay) {
+        const score = overlay._signalProps?.opportunity_score;
+        const isSelected = overlay._signalProps?.id === selectedId;
+        const style = new mapkit.Style({
+          fillColor: scoreToHex(score),
+          fillOpacity: isSelected ? 0.85 : 0.60,
+          strokeColor: '#ffffff',
+          strokeOpacity: isSelected ? 0.6 : 0.15,
+          lineWidth: isSelected ? 2 : 0.5,
+        });
+        return style;
+      },
+    };
+
+    const delegate2 = {
+      styleForFeature(style, feature) {
+        const score = feature.properties?.opportunity_score;
+        style.fillColor = scoreToHex(score);
+        style.fillOpacity = 0.60;
+        style.strokeColor = '#ffffff';
+        style.strokeOpacity = 0.15;
+        style.lineWidth = 0.5;
+        return style;
+      },
+
+      itemForFeature(overlay, feature) {
+        const props = feature.properties ?? {};
+        overlay._signalProps = props;
+
+        // Click handler
+        overlay.addEventListener('select', () => {
+          onRegionSelect?.(props);
+        });
+
+        // Hover handlers
+        overlay.addEventListener('mouseenter', (e) => {
+          const el = e.target;
+          overlay._style = new mapkit.Style({
+            fillColor: scoreToHex(props.opportunity_score),
+            fillOpacity: 0.82,
+            strokeColor: '#ffffff',
+            strokeOpacity: 0.4,
+            lineWidth: 1.5,
+          });
+          overlay.style = overlay._style;
+        });
+
+        overlay.addEventListener('mouseleave', () => {
+          overlay.style = new mapkit.Style({
+            fillColor: scoreToHex(props.opportunity_score),
+            fillOpacity: 0.60,
+            strokeColor: '#ffffff',
+            strokeOpacity: 0.15,
+            lineWidth: 0.5,
+          });
+        });
+
+        overlayMapRef.current[props.id] = overlay;
+        return overlay;
+      },
+    };
+
+    mapkit.importGeoJSON(geojson, delegate2);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapReady, geojson]);
+
+  // ── Update selected region highlight ────────────────────────────────────────
+  useEffect(() => {
+    if (!overlayMapRef.current) return;
+    for (const [id, overlay] of Object.entries(overlayMapRef.current)) {
+      const score = overlay._signalProps?.opportunity_score;
+      const isSelected = id === selectedId;
+      overlay.style = new mapkit.Style({
+        fillColor: scoreToHex(score),
+        fillOpacity: isSelected ? 0.85 : 0.60,
+        strokeColor: '#ffffff',
+        strokeOpacity: isSelected ? 0.6 : 0.15,
+        lineWidth: isSelected ? 2 : 0.5,
+      });
+    }
+  }, [selectedId]);
+
+  // ── Mouse move for tooltip ───────────────────────────────────────────────────
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const onMouseMove = (e) => {
+      const rect = container.getBoundingClientRect();
+      setTooltip(prev => prev ? { ...prev, x: e.clientX - rect.left, y: e.clientY - rect.top } : null);
+    };
+
+    container.addEventListener('mousemove', onMouseMove);
+    return () => container.removeEventListener('mousemove', onMouseMove);
+  }, []);
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <Map
-        ref={mapRef}
-        initialViewState={INITIAL_VIEW}
-        style={{ width: '100%', height: '100%' }}
-        mapStyle={MAP_STYLE}
-        mapboxAccessToken={MAPBOX_TOKEN}
-        onMouseMove={onMouseMove}
-        onMouseLeave={onMouseLeave}
-        onClick={onClick}
-        interactiveLayerIds={[FILL_LAYER.id]}
-      >
-        <NavigationControl position="bottom-right" />
+    <div className="map-wrapper">
+      <div ref={containerRef} className="map-container" />
 
-        {choroplethData && (
-          <Source
-            id={SOURCE_ID}
-            type="geojson"
-            data={choroplethData}
-            promoteId="id"
-          >
-            <Layer {...FILL_LAYER} paint={FILL_PAINT} />
-            <Layer {...BORDER_LAYER} paint={BORDER_PAINT} />
-            <Layer
-              {...HIGHLIGHT_LAYER}
-              paint={HIGHLIGHT_PAINT}
-              filter={highlightFilter}
-            />
-          </Source>
-        )}
-      </Map>
+      {!mapReady && (
+        <div className="map-loading">
+          <span className="loading-spinner" />
+          <span>Loading map…</span>
+        </div>
+      )}
 
-      {hoverInfo && (
+      {tooltip && (
         <div
           className="map-tooltip"
-          style={{ left: hoverInfo.x + 12, top: hoverInfo.y - 8 }}
+          style={{ left: tooltip.x + 14, top: tooltip.y - 10 }}
         >
-          <div className="map-tooltip-name">{hoverInfo.name}</div>
-          <div className="map-tooltip-score">
-            Score:{' '}
-            <strong style={{ color: scoreColor(hoverInfo.score) }}>
-              {formatScore(hoverInfo.score)}
-            </strong>
-            /100
+          <div className="map-tooltip-name">{tooltip.name}</div>
+          <div className="map-tooltip-score" style={{ color: scoreToHex(tooltip.score) }}>
+            Score {tooltip.score ?? '—'}
           </div>
         </div>
       )}
     </div>
   );
-}
-
-function scoreColor(score) {
-  if (score == null) return '#7a8fa8';
-  if (score >= 70) return '#22c55e';
-  if (score >= 40) return '#eab308';
-  return '#ef4444';
 }

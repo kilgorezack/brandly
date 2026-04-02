@@ -1,139 +1,77 @@
-import { useState, useEffect } from 'react';
-import { fetchComparison } from '../api/comparison.js';
+import { useMemo } from 'react';
+import ScoreGauge from './ScoreGauge.jsx';
 import {
   formatPopulation,
-  formatIncome,
+  formatCount,
+  formatAnnualIncome,
   formatPercent,
+  formatAge,
   formatDensity,
-  formatGrowth,
-  formatScore,
 } from '../utils/formatters.js';
-import { scoreToHex } from '../utils/scoreColors.js';
-import ScoreGauge from './ScoreGauge.jsx';
 
-export default function ComparisonTray({ ids, onRemove, onClear, onClose }) {
-  const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+const METRICS = [
+  { label: 'Population',           fn: d => formatPopulation(d?.population) },
+  { label: 'Households',           fn: d => formatCount(d?.dwelling_count) },
+  { label: 'Avg Annual Income',    fn: d => formatAnnualIncome(d?.median_household_income_weekly) },
+  { label: 'Median Age',           fn: d => formatAge(d?.median_age) },
+  { label: 'Families w/ Children', fn: d => formatPercent(d?.households_with_children_pct, 0) },
+  { label: 'Home Ownership',       fn: d => {
+    const v = (d?.owned_outright_pct ?? 0) + (d?.owned_mortgage_pct ?? 0);
+    return v > 0 ? formatPercent(v, 0) : '—';
+  }},
+  { label: 'Single Family Homes',  fn: d => formatPercent(d?.separate_house_pct, 0) },
+  { label: 'Internet Access',      fn: d => formatPercent(d?.internet_access_pct, 0) },
+  { label: 'Elderly (65+)',        fn: d => formatPercent(d?.elderly_pct, 0) },
+  { label: 'Renters',              fn: d => formatPercent(d?.renting_pct, 0) },
+  { label: 'Pop. Density',         fn: d => formatDensity(d?.population_density_per_sqkm) },
+];
 
-  useEffect(() => {
-    if (ids.length < 2) return;
-    setIsLoading(true);
-    fetchComparison(ids)
-      .then(setData)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
-  }, [ids.join(',')]);
-
-  const regions = data?.regions || [];
-
-  const METRICS = [
-    { label: 'Population', fn: (d) => formatPopulation(d?.population) },
-    { label: 'Median Income', fn: (d) => formatIncome(d?.median_household_income_aud) },
-    { label: 'Families w/ Children', fn: (d) => formatPercent(d?.households_with_children_pct) },
-    { label: 'Internet Access', fn: (d) => formatPercent(d?.internet_access_pct) },
-    { label: 'Density', fn: (d) => formatDensity(d?.population_density_per_sqkm) },
-  ];
+export default function ComparisonTray({ regions, onClose, onRemove, onClear }) {
+  if (!regions?.length) return null;
 
   return (
     <div className="comparison-tray">
-      <div className="comparison-tray-header">
-        <span className="comparison-tray-title">
-          Comparing {ids.length} Regions
-        </span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={onClear}>
-            Clear all
-          </button>
-          <button className="btn-icon" onClick={onClose}>✕</button>
+      <div className="comparison-header">
+        <span className="comparison-title">Comparison ({regions.length})</span>
+        <div className="comparison-header-actions">
+          <button className="btn btn-ghost btn-sm" onClick={onClear}>Clear all</button>
+          <button className="btn-icon" onClick={onClose} title="Close">✕</button>
         </div>
       </div>
 
-      {isLoading ? (
-        <div style={{ padding: 24, textAlign: 'center' }}>
-          <span className="loading-spinner" />
-        </div>
-      ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <div className="comparison-grid">
-            {/* Metric labels column */}
-            <div className="comparison-col" style={{ minWidth: 150, flexShrink: 0 }}>
-              <div style={{ height: 80 }} /> {/* spacer for score gauge */}
-              <div style={{ marginTop: 8 }}>
-                {METRICS.map((m) => (
-                  <div
-                    key={m.label}
-                    style={{
-                      padding: '7px 0',
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                      borderBottom: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    {m.label}
+      <div className="comparison-scroll">
+        <table className="comparison-table">
+          <thead>
+            <tr>
+              <th className="comparison-metric-col" />
+              {regions.map(r => (
+                <th key={r.id} className="comparison-region-col">
+                  <div className="comparison-region-header">
+                    <div className="comparison-region-name">{r.name}</div>
+                    <div className="comparison-region-state">{r.state_code}</div>
+                    <button
+                      className="btn-icon btn-icon-sm"
+                      onClick={() => onRemove(r.id)}
+                      title="Remove"
+                    >✕</button>
                   </div>
+                  <ScoreGauge score={r.opportunity_score} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {METRICS.map(({ label, fn }) => (
+              <tr key={label}>
+                <td className="comparison-metric-label">{label}</td>
+                {regions.map(r => (
+                  <td key={r.id} className="comparison-metric-value">{fn(r)}</td>
                 ))}
-              </div>
-            </div>
-
-            {/* One column per region */}
-            {regions.map(({ region, demographics, score }) => (
-              <div key={region.id} className="comparison-col">
-                <div className="comparison-col-header">
-                  <div>
-                    <div className="comparison-col-name">{region.name}</div>
-                    <div className="comparison-col-state">{region.type.toUpperCase()} · {region.state_code}</div>
-                  </div>
-                  <button
-                    className="btn-icon"
-                    onClick={() => onRemove(region.id)}
-                    title="Remove"
-                    style={{ marginTop: -4 }}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <ScoreGauge score={score?.opportunity_score} size={64} />
-
-                <div style={{ marginTop: 8 }}>
-                  {METRICS.map((m) => (
-                    <div
-                      key={m.label}
-                      style={{
-                        padding: '7px 0',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        fontVariantNumeric: 'tabular-nums',
-                        borderBottom: '1px solid var(--border-subtle)',
-                      }}
-                    >
-                      {m.fn(demographics)}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              </tr>
             ))}
-
-            {/* Empty slot placeholders */}
-            {ids.length < 5 && (
-              <div
-                className="comparison-col"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--text-muted)',
-                  fontSize: 12,
-                  minHeight: 120,
-                }}
-              >
-                Click a region on the map to add
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

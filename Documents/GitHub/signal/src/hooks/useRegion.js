@@ -1,33 +1,28 @@
 import { useState, useCallback } from 'react';
-import { fetchRegion } from '../api/regions.js';
 
+/**
+ * Manages the currently selected region.
+ * All data is already embedded in the GeoJSON loaded by the map,
+ * so this just tracks which feature properties are "active".
+ */
 export function useRegion() {
-  const [selectedRegion, setSelectedRegion] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const [regionData, setRegionData] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
 
-  const selectRegion = useCallback(async (region) => {
-    setSelectedRegion(region);
-    setRegionData(null);
-    setError(null);
-    setIsLoading(true);
-
-    try {
-      const data = await fetchRegion(region.id);
-      setRegionData(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+  const selectRegion = useCallback((properties) => {
+    if (!properties) {
+      setSelectedId(null);
+      setRegionData(null);
+      return;
     }
+    setSelectedId(properties.id);
+    setRegionData(properties);
   }, []);
 
   const clearRegion = useCallback(() => {
-    setSelectedRegion(null);
+    setSelectedId(null);
     setRegionData(null);
-    setError(null);
   }, []);
 
-  return { selectedRegion, regionData, isLoading, error, selectRegion, clearRegion };
+  return { selectedId, regionData, selectRegion, clearRegion };
 }

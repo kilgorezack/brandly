@@ -1,8 +1,17 @@
-/**
- * Formatters for Australian-context metric display.
- */
+export const SA_TYPE_LABELS = {
+  sa4: 'Statistical Area 4',
+  sa3: 'Statistical Area 3',
+  sa2: 'Statistical Area 2',
+};
 
 export function formatPopulation(n) {
+  if (n == null) return '—';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString('en-AU');
+}
+
+export function formatCount(n) {
   if (n == null) return '—';
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -11,46 +20,44 @@ export function formatPopulation(n) {
 
 export function formatIncome(weeklyAud) {
   if (weeklyAud == null) return '—';
-  return `$${weeklyAud.toLocaleString('en-AU')}/wk`;
+  return `AU$${weeklyAud.toLocaleString('en-AU')}/wk`;
 }
 
-export function formatPercent(value, decimals = 1) {
-  if (value == null) return '—';
-  return `${Number(value).toFixed(decimals)}%`;
+export function formatAnnualIncome(weeklyAud) {
+  if (weeklyAud == null) return '—';
+  const annual = weeklyAud * 52;
+  if (annual >= 1_000) return `AU$${Math.round(annual / 1_000)}k`;
+  return `AU$${annual.toLocaleString('en-AU')}`;
 }
 
-export function formatDensity(perSqkm) {
-  if (perSqkm == null) return '—';
-  return `${Math.round(perSqkm).toLocaleString('en-AU')} /km²`;
+export function formatPercent(v, decimals = 0) {
+  if (v == null) return '—';
+  return `${v.toFixed(decimals)}%`;
+}
+
+export function formatAge(age) {
+  if (age == null) return '—';
+  return `${Math.round(age)} yrs`;
+}
+
+export function formatDensity(v) {
+  if (v == null) return '—';
+  if (v >= 1000) return `${(v / 1000).toFixed(1)}K/km²`;
+  return `${Math.round(v)}/km²`;
 }
 
 export function formatArea(sqkm) {
   if (sqkm == null) return '—';
-  if (sqkm >= 1_000_000) return `${(sqkm / 1_000_000).toFixed(1)}M km²`;
-  if (sqkm >= 1_000) return `${Math.round(sqkm / 1_000).toLocaleString('en-AU')}K km²`;
-  return `${Math.round(sqkm).toLocaleString('en-AU')} km²`;
+  if (sqkm >= 1000) return `${Math.round(sqkm / 1000)}K km²`;
+  return `${Math.round(sqkm)} km²`;
 }
 
-export function formatGrowth(pct) {
-  if (pct == null) return '—';
-  const sign = pct > 0 ? '+' : '';
-  return `${sign}${Number(pct).toFixed(1)}%`;
+export function formatHouseholdSize(v) {
+  if (v == null) return '—';
+  return v.toFixed(1);
 }
 
-export function formatScore(score) {
-  if (score == null) return '—';
-  return Math.round(score).toString();
+export function formatScore(v) {
+  if (v == null) return '—';
+  return Math.round(v).toString();
 }
-
-export function formatHouseholdSize(avg) {
-  if (avg == null) return '—';
-  return Number(avg).toFixed(1);
-}
-
-export const SA_TYPE_LABELS = {
-  state: 'State/Territory',
-  sa4: 'Statistical Area Level 4',
-  sa3: 'Statistical Area Level 3',
-  sa2: 'Statistical Area Level 2',
-  sa1: 'Statistical Area Level 1',
-};

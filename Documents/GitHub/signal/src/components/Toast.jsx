@@ -1,6 +1,7 @@
-export default function Toast({ message, type = 'info' }) {
+export default function Toast({ message, onDismiss }) {
+  if (!message) return null;
   return (
-    <div className={`toast toast-${type}`}>
+    <div className="toast" onClick={onDismiss}>
       {message}
     </div>
   );

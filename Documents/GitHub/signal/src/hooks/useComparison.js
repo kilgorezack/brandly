@@ -1,22 +1,35 @@
 import { useState, useCallback } from 'react';
+import { MAX_COMPARISON } from '../config.js';
 
 export function useComparison() {
-  const [comparisonIds, setComparisonIds] = useState([]);
+  const [regions, setRegions] = useState([]); // array of region property objects
+  const [open, setOpen] = useState(false);
 
-  const addToComparison = useCallback((id) => {
-    setComparisonIds((prev) => {
-      if (prev.includes(id) || prev.length >= 5) return prev;
-      return [...prev, id];
+  const add = useCallback((properties) => {
+    setRegions(prev => {
+      if (prev.some(r => r.id === properties.id)) return prev;
+      if (prev.length >= MAX_COMPARISON) return prev;
+      return [...prev, properties];
+    });
+    setOpen(true);
+  }, []);
+
+  const remove = useCallback((id) => {
+    setRegions(prev => {
+      const next = prev.filter(r => r.id !== id);
+      if (next.length === 0) setOpen(false);
+      return next;
     });
   }, []);
 
-  const removeFromComparison = useCallback((id) => {
-    setComparisonIds((prev) => prev.filter((i) => i !== id));
+  const clear = useCallback(() => {
+    setRegions([]);
+    setOpen(false);
   }, []);
 
-  const clearComparison = useCallback(() => {
-    setComparisonIds([]);
-  }, []);
+  const isInComparison = useCallback((id) => {
+    return regions.some(r => r.id === id);
+  }, [regions]);
 
-  return { comparisonIds, addToComparison, removeFromComparison, clearComparison };
+  return { regions, open, setOpen, add, remove, clear, isInComparison };
 }

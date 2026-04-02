@@ -1,44 +1,37 @@
-import { useState } from 'react';
-import { useInsights } from '../hooks/useInsights.js';
-
-export default function InsightsDrawer({ regionId }) {
-  const [open, setOpen] = useState(false);
-  const [activeRegionId, setActiveRegionId] = useState(null);
-  const { text, isLoading, error } = useInsights(activeRegionId);
-
-  const handleGenerate = () => {
-    setActiveRegionId(regionId);
-    setOpen(true);
-  };
-
-  if (!open) {
-    return (
-      <button className="btn btn-ghost" style={{ width: '100%' }} onClick={handleGenerate}>
-        ✦ Generate AI Insights
-      </button>
-    );
-  }
+export default function InsightsDrawer({ text, loading, error, onGenerate }) {
+  const hasContent = text?.length > 0;
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-          ✦ AI Analysis
-        </span>
-        <button className="btn-icon" onClick={() => setOpen(false)} title="Close">
-          ✕
-        </button>
-      </div>
+    <div className="insights-drawer">
+      <div className="section-label" style={{ marginBottom: 8 }}>AI Market Insights</div>
 
-      {error ? (
-        <p style={{ color: 'var(--score-low)', fontSize: 13 }}>
-          Failed to load insights: {error}
-        </p>
-      ) : (
-        <p className="insights-content">
-          {text || (isLoading ? '' : 'No insights available.')}
-          {isLoading && <span className="insights-cursor" />}
-        </p>
+      {!hasContent && !loading && !error && (
+        <button className="btn btn-accent" onClick={onGenerate}>
+          Generate Insights
+        </button>
+      )}
+
+      {loading && (
+        <div className="insights-loading">
+          <span className="loading-spinner" style={{ width: 14, height: 14 }} />
+          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Analysing region…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="insights-error">
+          <span style={{ color: 'var(--score-low)', fontSize: 12 }}>{error}</span>
+          <button className="btn btn-ghost" style={{ marginLeft: 8 }} onClick={onGenerate}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {hasContent && (
+        <div className="insights-text">
+          {text}
+          {loading && <span className="insights-cursor" />}
+        </div>
       )}
     </div>
   );

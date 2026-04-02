@@ -1,12 +1,12 @@
 {
-  "buildCommand": "node scripts/prebuild-boundaries.js && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api/index" }
-  ],
   "functions": {
-    "api/index.js": {
+    "api/insights.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" }
+  ]
 }
