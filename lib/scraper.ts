@@ -1,4 +1,5 @@
-import { chromium, Browser } from "playwright";
+import chromiumBinary from "@sparticuz/chromium";
+import { chromium, Browser } from "playwright-core";
 import tinycolor from "tinycolor2";
 import type { BrandColor, BrandFont, BrandLogo, BrandData } from "@/types/brand";
 
@@ -41,17 +42,29 @@ const SYSTEM_FONTS = new Set([
 // Browser singleton — reused across requests to avoid per-request launch overhead
 let browser: Browser | null = null;
 
+const IS_SERVERLESS = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
 async function getBrowser(): Promise<Browser> {
   if (!browser || !browser.isConnected()) {
-    browser = await chromium.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-      ],
-    });
+    if (IS_SERVERLESS) {
+      // On Vercel: use @sparticuz/chromium binary + args optimized for serverless
+      browser = await chromium.launch({
+        args: chromiumBinary.args,
+        executablePath: await chromiumBinary.executablePath(),
+        headless: true,
+      });
+    } else {
+      // Local dev: use the playwright-installed Chromium binary
+      browser = await chromium.launch({
+        headless: true,
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu",
+        ],
+      });
+    }
   }
   return browser;
 }
@@ -160,7 +173,7 @@ export async function scrapeBrand(url: string): Promise<BrandData> {
     // Give JS frameworks time to hydrate
     await page.waitForTimeout(2000);
 
-    const p = page as import("playwright").Page;
+    const p = page as import("playwright-core").Page;
     const [rawColors, rawFonts, logo, brandName] = await Promise.all([
       extractColors(p),
       extractFonts(p),
@@ -183,7 +196,7 @@ export async function scrapeBrand(url: string): Promise<BrandData> {
 
 // ── Extraction functions ───────────────────────────────────────────────────────
 
-async function extractColors(page: import("playwright").Page): Promise<RawColor[]> {
+async function extractColors(page: import("playwright-core").Page): Promise<RawColor[]> {
   return page.evaluate((): RawColor[] => {
     const results: RawColor[] = [];
 
@@ -254,7 +267,7 @@ async function extractColors(page: import("playwright").Page): Promise<RawColor[
   });
 }
 
-async function extractFonts(page: import("playwright").Page): Promise<RawFont[]> {
+async function extractFonts(page: import("playwright-core").Page): Promise<RawFont[]> {
   return page.evaluate((): RawFont[] => {
     const results: RawFont[] = [];
 
@@ -294,7 +307,7 @@ async function extractFonts(page: import("playwright").Page): Promise<RawFont[]>
   });
 }
 
-async function extractLogo(page: import("playwright").Page): Promise<BrandLogo | null> {
+async function extractLogo(page: import("playwright-core").Page): Promise<BrandLogo | null> {
   return page.evaluate((): BrandLogo | null => {
     const origin = window.location.origin;
 
@@ -335,7 +348,7 @@ async function extractLogo(page: import("playwright").Page): Promise<BrandLogo |
   });
 }
 
-async function extractBrandName(page: import("playwright").Page): Promise<string> {
+async function extractBrandName(page: import("playwright-core").Page): Promise<string> {
   return page.evaluate((): string => {
     const og = document.querySelector('meta[property="og:site_name"]');
     if (og?.getAttribute("content")) {

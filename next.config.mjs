@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ["playwright"],
+    serverComponentsExternalPackages: ["playwright-core", "@sparticuz/chromium"],
   },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
