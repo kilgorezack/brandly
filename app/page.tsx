@@ -14,17 +14,17 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="border-b border-gray-100 bg-white px-6 py-12 shadow-sm">
+      <div className="border-b border-gray-100 bg-white px-4 py-10 shadow-sm sm:px-6 sm:py-12">
         <div className="mx-auto max-w-2xl text-center">
           <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-gray-100 bg-gray-50 px-3 py-1 text-xs text-gray-500">
             <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-            Headless browser · Instant extraction
+            Instant brand extraction
           </div>
-          <h1 className="mt-4 text-4xl font-bold tracking-tight text-gray-900">
+          <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
             Brand asset extractor
           </h1>
           <p className="mt-3 text-base text-gray-500">
-            Paste any URL to extract colors, fonts, and logos instantly.
+            Paste any URL to extract colors and fonts instantly.
           </p>
 
           <div className="mt-8">
@@ -48,21 +48,21 @@ export default function Home() {
 
       {/* Results */}
       {brandData && (
-        <div className="mx-auto max-w-5xl px-6 py-12">
+        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
           <BrandResults data={brandData} />
         </div>
       )}
 
       {/* Empty state */}
       {!brandData && !isLoading && (
-        <div className="mx-auto mt-16 max-w-lg px-6 text-center">
+        <div className="mx-auto mt-12 max-w-lg px-6 text-center sm:mt-16">
           <div className="grid grid-cols-3 gap-3 opacity-30">
             {["#E94560", "#0F3460", "#16213E", "#533483", "#2EC4B6", "#E71D36"].map((hex) => (
               <div key={hex} className="h-12 rounded-lg" style={{ backgroundColor: hex }} />
             ))}
           </div>
           <p className="mt-6 text-sm text-gray-400">
-            Results will appear here — colors, fonts, logo, and export options.
+            Results will appear here — colors, fonts, and export options.
           </p>
         </div>
       )}

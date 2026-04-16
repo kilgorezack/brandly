@@ -18,14 +18,14 @@ export function BrandResults({ data }: { data: BrandData }) {
   return (
     <div className="space-y-10">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-100 pb-6">
+      <div className="flex flex-col gap-4 border-b border-gray-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{data.brandName}</h1>
           <a
             href={data.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-1 block text-sm text-gray-500 hover:text-gray-700 hover:underline"
+            className="mt-1 block truncate text-sm text-gray-500 hover:text-gray-700 hover:underline"
           >
             {data.url}
           </a>

@@ -114,14 +114,10 @@ function processColors(raw: RawColor[]): BrandColor[] {
     .map((r) => ({ tc: tinycolor(r.value), source: r.source }))
     .filter((r) => r.tc.isValid());
 
-  // Filter out transparent, near-white, near-black
+  // Filter only fully transparent colors; keep whites/blacks since they are real brand colors
   const meaningful = parsed.filter(({ tc }) => {
     const { a } = tc.toRgb();
-    if (a < 0.1) return false;
-    const lum = tc.getLuminance();
-    if (lum > 0.92) return false; // near-white
-    if (lum < 0.008) return false; // near-black
-    return true;
+    return a >= 0.1;
   });
 
   // Greedy clustering: merge colors within RGB distance 40
