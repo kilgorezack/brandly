@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { BrandData } from "@/types/brand";
 import { UrlForm } from "@/components/UrlForm";
 import { BrandResults } from "@/components/BrandResults";
+import { LoadingState } from "@/components/LoadingState";
 
 export default function Home() {
   const [brandData, setBrandData] = useState<BrandData | null>(null);
@@ -41,12 +42,7 @@ export default function Home() {
             </div>
           )}
 
-          {isLoading && (
-            <div className="mt-6 space-y-1 text-sm text-gray-400">
-              <p>Launching headless browser…</p>
-              <p className="text-xs">This can take 5–15 seconds</p>
-            </div>
-          )}
+          {isLoading && <LoadingState />}
         </div>
       </div>
 
