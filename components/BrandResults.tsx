@@ -3,7 +3,6 @@
 import type { BrandData } from "@/types/brand";
 import { ColorPalette } from "./ColorPalette";
 import { FontSection } from "./FontSection";
-import { LogoSection } from "./LogoSection";
 import { ExportPanel } from "./ExportPanel";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -33,11 +32,6 @@ export function BrandResults({ data }: { data: BrandData }) {
         </div>
         <ExportPanel data={data} />
       </div>
-
-      {/* Logo */}
-      <Section title="Logo">
-        <LogoSection logo={data.logo} />
-      </Section>
 
       {/* Colors */}
       <Section title={`Colors · ${data.colors.length}`}>

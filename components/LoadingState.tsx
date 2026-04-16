@@ -3,15 +3,18 @@
 import { useEffect, useState } from "react";
 
 const STEPS = [
-  { icon: "⚡", text: "Launching headless browser" },
-  { icon: "🌐", text: "Navigating to your URL" },
-  { icon: "⏳", text: "Waiting for JavaScript to hydrate" },
-  { icon: "🎨", text: "Scanning CSS stylesheets" },
-  { icon: "🖌️", text: "Extracting color palette" },
-  { icon: "🔤", text: "Detecting fonts" },
-  { icon: "🖼️", text: "Hunting for the logo" },
-  { icon: "🔬", text: "Clustering similar colors" },
-  { icon: "✨", text: "Polishing results" },
+  { icon: "🕵️", text: "Slipping past the cookie banner" },
+  { icon: "👀", text: "Judging their font choices" },
+  { icon: "📐", text: "Calculating the exact shade of corporate blue" },
+  { icon: "🤝", text: "Making friends with the CSS" },
+  { icon: "🙏", text: "Checking if Comic Sans was involved" },
+  { icon: "🎨", text: "Stealing... I mean, borrowing brand inspiration" },
+  { icon: "🔍", text: "Looking for a font that isn't Helvetica" },
+  { icon: "🤔", text: "Wondering who approved that color" },
+  { icon: "📋", text: "Filing a formal complaint about the hex codes" },
+  { icon: "✨", text: "Memorizing the vibe" },
+  { icon: "🎭", text: "Asking the logo if it's having a good day" },
+  { icon: "🔢", text: "Converting RGB to hex for the 1000th time" },
 ];
 
 export function LoadingState() {
@@ -19,7 +22,7 @@ export function LoadingState() {
   const [dots, setDots] = useState("");
   const [visible, setVisible] = useState(true);
 
-  // Cycle through steps every 2.2s
+  // Cycle through steps every 2.2s with a fade
   useEffect(() => {
     const interval = setInterval(() => {
       setVisible(false);
@@ -43,7 +46,7 @@ export function LoadingState() {
 
   return (
     <div className="mt-8 flex flex-col items-center gap-5">
-      {/* Spinner bar */}
+      {/* Shimmer bar */}
       <div className="relative h-0.5 w-48 overflow-hidden rounded-full bg-gray-100">
         <div className="animate-shimmer absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-gray-400 to-transparent" />
       </div>

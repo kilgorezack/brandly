@@ -91,6 +91,24 @@ interface RawColor {
   source: string;
 }
 
+// Higher = more likely to be a real brand color
+function sourcePriority(source: string): number {
+  if (/--(?:color-)?(?:primary|brand|main|accent|key|cta)/i.test(source)) return 100;
+  if (/button|btn|cta/i.test(source)) return 80;
+  if (/meta\[theme/i.test(source)) return 70;
+  if (/header|nav/i.test(source)) return 50;
+  if (/^--/.test(source)) return 40; // any other CSS var
+  if (/hero|banner/i.test(source)) return 30;
+  if (/h[123]/i.test(source)) return 20;
+  if (/a\.color/i.test(source)) return 15;
+  return 5;
+}
+
+function brandScore(c: { tc: tinycolor.Instance; source: string; count: number }): number {
+  const { s } = c.tc.toHsl(); // saturation 0–1
+  return sourcePriority(c.source) + s * 40 + c.count * 3;
+}
+
 function processColors(raw: RawColor[]): BrandColor[] {
   const parsed = raw
     .map((r) => ({ tc: tinycolor(r.value), source: r.source }))
@@ -114,12 +132,19 @@ function processColors(raw: RawColor[]): BrandColor[] {
     const match = clusters.find((c) => rgbDistance(c.tc, tc) < THRESHOLD);
     if (match) {
       match.count++;
+      // Keep the source from whichever has higher priority
+      if (sourcePriority(source) > sourcePriority(match.source)) {
+        match.source = source;
+        match.tc = tc;
+      }
     } else {
       clusters.push({ tc, source, count: 1 });
     }
   }
 
-  clusters.sort((a, b) => b.count - a.count);
+  // Score = source priority + saturation bonus + frequency
+  // This floats "real" brand colors (buttons, CSS vars, CTAs) above incidental grays
+  clusters.sort((a, b) => brandScore(b) - brandScore(a));
 
   return clusters.slice(0, 12).map(({ tc, source }) => ({
     hex: tc.toHexString(),
